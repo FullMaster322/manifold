@@ -1,35 +1,3 @@
-<script setup>
-import { ref, onMounted } from 'vue'
-
-const text = ref('')
-const textarea = ref(null)
-
-const maxHeight = 350
-
-const adjustHeight = () => {
-  const el = textarea.value
-  if (!el) return
-
-  el.style.height = 'auto'
-  let newHeight = el.scrollHeight
-
-  if (newHeight > maxHeight) {
-    newHeight = maxHeight
-    el.style.overflowY = 'auto'
-  } else {
-    el.style.overflowY = 'hidden'
-  }
-
-  el.style.height = `${newHeight}px`
-}
-
-
-onMounted(() => {
-  adjustHeight()
-})
-</script>
-
-
 <script>
 export default {
   data() {
@@ -40,42 +8,39 @@ export default {
       selectedItemName: null,
       selectedItemId: null,
       id: null,
-      text: '', 
       previousParagraphs: [],
       paragraphCount: 0,
     };
   },
+
   mounted() {
+    this.id = this.$route.query.cardId;
 
-  this.id = this.$route.query.cardId;
-  console.log('ID from route:', this.id);
-
-  if (this.id) {
-    this.id = Number(this.id);
-  }
-
-  this.fetchLocalJson().then(() => {
-    const matchedItem = this.items.find(item => item.id === this.id);
-    if (matchedItem) {
-      this.selectItem({
-        ...matchedItem,
-        highlightedName: matchedItem.name,
-        highlightedDescription: matchedItem.description
-      });
+    if (this.id) {
+      this.id = Number(this.id);
     }
-  });
-},
 
+    this.fetchLocalJson().then(() => {
+      const matchedItem = this.items.find(item => item.id === this.id);
+      if (matchedItem) {
+        this.selectItem({
+          ...matchedItem,
+          highlightedName: matchedItem.name,
+          highlightedDescription: matchedItem.description,
+        });
+      }
+    });
+  },
 
   computed: {
-    
     highlightedItems() {
       const keyword = this.search.trim();
+
       if (!keyword) {
         return this.items.map(item => ({
           ...item,
           highlightedName: item.name,
-          highlightedDescription: item.description
+          highlightedDescription: item.description,
         }));
       }
 
@@ -83,42 +48,91 @@ export default {
 
       return this.items
         .filter(item => regex.test(item.name) || regex.test(item.description))
-        .map(item => {
-          const highlightedName = item.name.replace(regex, '<span style="background: #0078D4; color: white">$1</span>');
-          const highlightedDescription = item.description.replace(regex, '<mark>$1</mark>');
-          return {
-            ...item,
-            highlightedName,
-            highlightedDescription
-          };
-        });
-    }
+        .map(item => ({
+          ...item,
+          highlightedName: item.name.replace(regex, '<span style="background: #0078D4; color: white">$1</span>'),
+          highlightedDescription: item.description.replace(regex, '<mark>$1</mark>'),
+        }));
+    },
   },
+
   methods: {
-   
     async fetchLocalJson() {
       try {
         const response = await fetch('/src/assets/list.json');
         const data = await response.json();
         this.items = data || [];
-        console.log('list.json:', data);
       } catch (error) {
-        console.error('ERROR LIST JSON:', error);
+        console.error('Ошибка загрузки JSON:', error);
       }
     },
+
     Search() {
       console.log(this.search);
     },
+
     selectItem(item) {
       this.selectedItemName = item.highlightedName;
       this.selectedItemId = item.id;
     },
-      
-  
-  },
-}
 
+    adjustHeight() {
+      const el = this.$refs.textarea;
+      const maxHeight = 350;
+
+      if (!el) return;
+
+      const isEmpty = el.value.trim() === '';
+      if (isEmpty) {
+        el.style.height = '36px';
+        el.style.overflowY = 'hidden';
+        return;
+      }
+
+      el.style.height = 'auto';
+      let newHeight = el.scrollHeight;
+
+      if (newHeight > maxHeight) {
+        newHeight = maxHeight;
+        el.style.overflowY = 'auto';
+      } else {
+        el.style.overflowY = 'hidden';
+      }
+
+      el.style.height = `${newHeight}px`;
+    },
+
+    sendMessage() {
+      const textareaEl = this.$refs.textarea;
+      if (!textareaEl) return;
+
+      const message = textareaEl.value.trim();
+      this.send = message;
+
+      if (!message) {
+        console.warn('⚠️ Пустое сообщение не отправляется');
+        return;
+      }
+
+      if (!this.selectedItemName || this.selectedItemName.trim() === '') {
+        console.warn('⚠️ Выберите AI перед отправкой сообщения');
+        return;
+      }
+
+      console.log('%c', 'color: #4f6dfc; font-weight: bold;', message);
+
+      if (this.selectedItemName === 'Copilot') {
+        console.log('%cCopilot', 'color: #00ffff; font-weight: bold;');
+      }
+
+      textareaEl.value = '';
+      this.send = '';
+      this.adjustHeight();
+    },
+  },
+};
 </script>
+
 
 
 
@@ -191,7 +205,7 @@ padding: 10px 14px; border: 1px; color: white; border-radius: 10px; outline: non
       <div style="position: fixed; bottom: 0; margin-left: 0; width: 66%; margin-left: 5%; overflow: hidden;">
       <div
           class="search-bar"
-          style="z-index: 9999; background: none; margin-top: 200px; padding-top: 10px; padding-bottom: 100px; padding-top: 50px; justify-content: center;"
+          style="z-index: 9999; background: none; margin-top: 200px; padding-top: 100px; padding-bottom: 100px; padding-top: 50px; justify-content: center;"
         >
           
 <div style="background-color: none; display: flex; padding-top: 35px; border: 1px; border-radius: 20px; padding-top: 2px; justify-content: center;">
@@ -202,9 +216,9 @@ padding: 10px 14px; border: 1px; color: white; border-radius: 10px; outline: non
       class="grow-up"
       @input="adjustHeight"
       placeholder="Send message..."
-      style="width: 70%; max-height: 350px; height: 20px; padding-top: 10px; padding-bottom: 0; height: 10px; "
+      style="width: 65%; max-height: 350px; padding-top: 10px; height: 36px; padding-bottom: 0;  font-size: 18px; padding-right: 5%;"
     />
-    <button class="sendBtn" style="position: absolute; bottom: 1%; right: -22%;">➤</button>
+    <button class="sendBtn" style="position: absolute; bottom: 1%; right: -22%;" v-on:click="sendMessage">➤</button>
     </div>
 
           
@@ -228,22 +242,22 @@ padding: 10px 14px; border: 1px; color: white; border-radius: 10px; outline: non
   left: -35%;
   height: 200px;
   width: 100%;
-  bottom: 3%;
+  bottom: 7%;
   
 }
 .grow-up {
  position: absolute;
   bottom: 0;
   width: 100%;
-  min-height: 60px;
+  min-height: 20px;
   max-height: 200px;
   background-color: rgba(40, 45, 60, 0.9);
   color: #e0eaff;
   font-size: 16px;
   line-height: 1.5;
-  padding: 12px 18px;
+
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  
   resize: none;
   outline: none;
   overflow-y: auto;
@@ -283,7 +297,7 @@ padding: 10px 14px; border: 1px; color: white; border-radius: 10px; outline: non
   border: none;
   border-radius: 50%;
   margin-left: 5px;
-  background: linear-gradient(135deg, #4f6dfc, #8f9eff);
+  background: rgba(40, 45, 60, 0);
 color: #fff;
 border: none;
 border-radius: 10px;
@@ -297,8 +311,7 @@ transition: transform 0.2s ease;
   margin-right: 10px;
 }
 .sendBtn:hover {
-
-box-shadow: 0 0 10px rgba(79, 109, 252, 0.4);
+font-size: 26px;
 }
 
 .aiCard.selected {
@@ -335,7 +348,7 @@ box-shadow: 0 0 10px rgba(79, 109, 252, 0.4);
   min-height: 35px;
   margin-left: 10%;
   z-index: 1;
-
+  height: 100vh;
   padding: 70px;
   border-left: none;
   border-bottom: none;
